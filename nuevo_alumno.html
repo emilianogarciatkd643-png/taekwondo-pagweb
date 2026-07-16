@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar Alumno - Taekwondo</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card-container { max-width: 550px; margin: 50px auto; background: white; padding: 35px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <div class="card-container">
+        <div class="d-flex justify-content-between mb-4">
+            <a href="index.html" class="btn btn-sm btn-outline-secondary">🏠 Inicio</a>
+            <a href="administrar.html" class="btn btn-sm btn-outline-dark">⚙️ Administrar</a>
+        </div>
+
+        <h3 class="text-center mb-4 fw-bold text-dark">🥋 Registrar Nuevo Alumno</h3>
+
+        <form id="form-registro" onsubmit="registrar(event)">
+            <div class="mb-3">
+                <label for="nombre" class="form-label fw-bold text-secondary">Nombre(s):</label>
+                <input type="text" id="nombre" class="form-control" placeholder="Escribe el nombre" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="apellido" class="form-label fw-bold text-secondary">Apellido(s):</label>
+                <input type="text" id="apellido" class="form-control" placeholder="Escribe los apellidos">
+            </div>
+
+            <div class="mb-3">
+                <label for="fecha_nacimiento" class="form-label fw-bold text-secondary">Fecha de Nacimiento:</label>
+                <input type="date" id="fecha_nacimiento" class="form-control">
+            </div>
+
+            <div class="mb-4">
+                <label for="horario" class="form-label fw-bold text-secondary">Asignar Clase / Horario:</label>
+                <select id="horario" class="form-select">
+                    <option value="6:00 PM (L-M-V)">6:00 PM — Lunes, Miércoles, Viernes</option>
+                    <option value="7:00 PM (L-M-V)">7:00 PM — Lunes, Miércoles, Viernes</option>
+                    <option value="8:00 PM (L-M-V)">8:00 PM — Lunes, Miércoles, Viernes</option>
+                    <option value="6:00 PM (M-J)">6:00 PM — Martes, Jueves</option>
+                    <option value="7:00 PM (M-J)">7:00 PM — Martes, Jueves</option>
+                    <option value="8:00 PM (M-J)">8:00 PM — Martes, Jueves</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 fw-bold py-2 fs-5">💾 Guardar Alumno</button>
+        </form>
+    </div>
+
+    <script>
+        const API_URL = "https://taekwondo-backend-aqnu.onrender.com";
+
+        async function registrar(event) {
+            event.preventDefault();
+
+            const nombre = document.getElementById('nombre').value.trim();
+            const apellido = document.getElementById('apellido').value.trim();
+            const fecha_nacimiento = document.getElementById('fecha_nacimiento').value;
+            const horario = document.getElementById('horario').value;
+
+            try {
+                const res = await fetch(`${API_URL}/alumnos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nombre: nombre,
+                        apellido: apellido ? apellido : null,
+                        fecha_nacimiento: fecha_nacimiento ? fecha_nacimiento : null,
+                        horario: horario,
+                        activo: true
+                    })
+                });
+
+                if (res.ok) {
+                    Swal.fire({
+                        title: '¡Registrado!',
+                        text: `${nombre} se agregó correctamente.`,
+                        icon: 'success',
+                        confirmButtonText: 'Aceptar'
+                    });
+                    document.getElementById('form-registro').reset();
+                } else {
+                    Swal.fire('Error', 'No se pudo guardar al alumno.', 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Hubo un problema de conexión.', 'error');
+            }
+        }
+    </script>
+<!-- pegar al final de tus páginas antes de </body> -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const SB_URL = "https://raqoidwtnhqhwbywsmiy.supabase.co";
+    const SB_KEY = "sb_publishable_JR5TZRjEM7QQYUUpTbU02A_JH8gic0p";
+    const supabaseGuard = supabase.createClient(SB_URL, SB_KEY);
+
+    // 1. Proteger la página expulsando a los intrusos
+    async function verificarAcceso() {
+        try {
+            const { data: { session } } = await supabaseGuard.auth.getSession();
+            if (!session) {
+                window.location.href = "login.html";
+            }
+        } catch (error) {
+            console.error("Error al verificar sesión:", error);
+            window.location.href = "login.html";
+        }
+    }
+    verificarAcceso();
+
+    // 2. Función por si tienes o quieres poner un botón de "Cerrar Sesión"
+    async function cerrarSesion() {
+        await supabaseGuard.auth.signOut();
+        window.location.href = "login.html";
+    }
+</script>
+</body>
+</html>

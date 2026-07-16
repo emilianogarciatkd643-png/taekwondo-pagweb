@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial Mensual</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; padding: 30px; font-family: sans-serif; }
+        .card-panel { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stat-card { background: #e9ecef; border-radius: 10px; padding: 15px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="container card-panel">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>📚 Archivo Histórico de Asistencias</h2>
+            <a href="index.html" class="btn btn-outline-secondary">⬅️ Volver al Inicio</a>
+        </div>
+
+        <!-- Filtros de Búsqueda actualizados -->
+        <div class="row g-3 mb-4 evaluation-filters">
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-secondary">Año:</label>
+                <select id="filtro-anio" class="form-select">
+                    <option value="2026" selected>2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold text-secondary">Mes:</label>
+                <select id="filtro-mes" class="form-select">
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6" selected>Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary">Clase:</label>
+                <select id="filtro-clase" class="form-select">
+                    <option value="6:00 PM (L-M-V)">6:00 PM — Lunes, Miércoles, Viernes</option>
+                    <option value="7:00 PM (L-M-V)">7:00 PM — Lunes, Miércoles, Viernes</option>
+                    <option value="8:00 PM (L-M-V)">8:00 PM — Lunes, Miércoles, Viernes</option>
+                    <option value="6:00 PM (M-J)">6:00 PM — Martes, Jueves</option>
+                    <option value="7:00 PM (M-J)">7:00 PM — Martes, Jueves</option>
+                    <option value="8:00 PM (M-J)">8:00 PM — Martes, Jueves</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button onclick="consultarHistorial()" class="btn btn-primary w-100 fw-bold">🔍 Consultar</button>
+            </div>
+        </div>
+
+        <!-- Tarjetas de Estadísticas Generales -->
+        <div class="row g-3 mb-4 d-none" id="bloque-stats">
+            <div class="col-md-6">
+                <div class="stat-card border-start border-primary border-4">
+                    <h5 class="text-muted mb-1">Alumnos con Registro</h5>
+                    <h3 id="stat-total-alumnos" class="fw-bold text-primary">0</h3>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-card border-start border-success border-4">
+                    <h5 class="text-muted mb-1">Rendimiento Grupal Promedio</h5>
+                    <h3 id="stat-promedio-grupo" class="fw-bold text-success">0%</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Resultados -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover align-middle text-center">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="text-start ps-3">Nombre del Alumno</th>
+                        <th>Clases en el Mes</th>
+                        <th>Asistencias Total</th>
+                        <th>Faltas Total</th>
+                        <th>% Rendimiento</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-historial-cuerpo">
+                    <tr><td colspan="5" class="text-muted">Selecciona los filtros y haz clic en Consultar.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://taekwondo-backend-aqnu.onrender.com";
+
+        async function consultarHistorial() {
+            const anio = document.getElementById('filtro-anio').value;
+            const mes = document.getElementById('filtro-mes').value;
+            const horario = document.getElementById('filtro-clase').value;
+            
+            const cuerpo = document.getElementById('tabla-historial-cuerpo');
+            const bloqueStats = document.getElementById('bloque-stats');
+            
+            cuerpo.innerHTML = '<tr><td colspan="5" class="text-muted">Procesando registros de Supabase...</td></tr>';
+            bloqueStats.classList.add('d-none');
+
+            try {
+                const res = await fetch(`${API_URL}/reporte-historial?anio=${anio}&mes=${mes}&horario=${encodeURIComponent(horario)}`);
+                const data = await res.json();
+
+                if (data.alumnos.length === 0) {
+                    cuerpo.innerHTML = '<tr><td colspan="5" class="text-warning fw-bold">No existen pases de lista registrados para este mes y clase.</td></tr>';
+                    return;
+                }
+
+                document.getElementById('stat-total-alumnos').textContent = data.stats_generales.total_alumnos;
+                document.getElementById('stat-promedio-grupo').textContent = `${data.stats_generales.asistencia_promedio}%`;
+                bloqueStats.classList.remove('d-none');
+
+                cuerpo.innerHTML = "";
+                data.alumnos.forEach(alumno => {
+                    const tr = document.createElement('tr');
+                    
+                    let badgeColor = "bg-danger";
+                    if (alumno.porcentaje >= 80) badgeColor = "bg-success";
+                    else if (alumno.porcentaje >= 60) badgeColor = "bg-warning text-dark";
+
+                    tr.innerHTML = `
+                        <td class="text-start ps-3 fw-bold">${alumno.nombre}</td>
+                        <td><span class="badge bg-light text-dark border px-2">${alumno.total_clases}</span></td>
+                        <td class="text-success fw-bold">${alumno.asistencias}</td>
+                        <td class="text-danger fw-bold">${alumno.faltas}</td>
+                        <td><span class="badge ${badgeColor} px-3 py-2 fs-6">${alumno.porcentaje}%</span></td>
+                    `;
+                    cuerpo.appendChild(tr);
+                });
+
+            } catch (error) {
+                cuerpo.innerHTML = '<tr><td colspan="5" class="text-danger">Error al calcular el historial mensual.</td></tr>';
+            }
+        }
+    </script>
+<!-- pegar al final de tus páginas antes de </body> -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const SB_URL = "https://raqoidwtnhqhwbywsmiy.supabase.co";
+    const SB_KEY = "sb_publishable_JR5TZRjEM7QQYUUpTbU02A_JH8gic0p";
+    const supabaseGuard = supabase.createClient(SB_URL, SB_KEY);
+
+    // 1. Proteger la página expulsando a los intrusos
+    async function verificarAcceso() {
+        try {
+            const { data: { session } } = await supabaseGuard.auth.getSession();
+            if (!session) {
+                window.location.href = "login.html";
+            }
+        } catch (error) {
+            console.error("Error al verificar sesión:", error);
+            window.location.href = "login.html";
+        }
+    }
+    verificarAcceso();
+
+    // 2. Función por si tienes o quieres poner un botón de "Cerrar Sesión"
+    async function cerrarSesion() {
+        await supabaseGuard.auth.signOut();
+        window.location.href = "login.html";
+    }
+</script>
+</body>
+</html>

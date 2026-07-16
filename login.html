@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Taekwondo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Librería oficial de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { 
+            background-color: #1e1e24; 
+            font-family: 'Segoe UI', sans-serif; 
+        }
+        .login-card { 
+            background: white; 
+            padding: 35px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); 
+            width: 100%; 
+            max-width: 400px; 
+        }
+    </style>
+</head>
+<body class="d-flex align-items-center justify-content-center vh-100">
+
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-dark">🥋 Control de Lista</h2>
+            <p class="text-muted">Ingresa tus credenciales de instructor</p>
+        </div>
+
+        <!-- Alerta de error (oculta por defecto con d-none) -->
+        <div id="alerta-error" class="alert alert-danger d-none" role="alert">
+            Usuario o contraseña incorrectos.
+        </div>
+
+        <form id="login-form" onsubmit="ejecutarLogin(event)">
+            <div class="mb-3">
+                <label for="email" class="form-label fw-bold text-secondary">Correo Electrónico</label>
+                <input type="email" id="email" class="form-control form-control-lg" placeholder="ejemplo@correo.com" required>
+            </div>
+            <div class="mb-4">
+                <label for="password" class="form-label fw-bold text-secondary">Contraseña</label>
+                <input type="password" id="password" class="form-control form-control-lg" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm">Entrar al Sistema</button>
+        </form>
+    </div>
+
+    <script>
+        // Tus credenciales originales del proyecto
+        const SUPABASE_URL = "https://raqoidwtnhqhwbywsmiy.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_JR5TZRjEM7QQYUUpTbU02A_JH8gic0p";
+        
+        // Inicializamos con un nombre de variable único para evitar bloqueos
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function ejecutarLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const alerta = document.getElementById('alerta-error');
+
+            // Ocultamos la alerta antes de intentar de nuevo
+            alerta.classList.add('d-none');
+
+            try {
+                // Intentar autenticación con Supabase
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+                if (error) {
+                    console.log("Error de Supabase:", error.message);
+                    alerta.classList.remove('d-none');
+                } else {
+                    console.log("Login correcto, redirigiendo...");
+                    window.location.href = "index.html";
+                }
+            } catch (err) {
+                console.error("Error inesperado en el script:", err);
+                alert("Hubo un problema de conexión con Supabase.");
+            }
+        }
+    </script>
+</body>
+</html>

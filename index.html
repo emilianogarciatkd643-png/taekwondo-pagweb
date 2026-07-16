@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pase de Lista - Taekwondo</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card-container { max-width: 650px; margin: 50px auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .alumno-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #eee; }
+        .alumno-name { font-size: 1.1rem; font-weight: 500; color: #333; }
+        .btn-action { width: 90px; margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="card-container">
+        
+        <!-- Menú de navegación unificado -->
+        <div class="d-flex justify-content-between mb-4">
+            <a href="nuevo_alumno.html" class="btn btn-sm btn-outline-success">➕ Registrar Alumno</a>
+            <a href="administrar.html" class="btn btn-sm btn-outline-dark">⚙️ Administrar</a>
+            <a href="reporte.html" class="btn btn-sm btn-outline-primary">📊 Ver Reporte</a>
+            <a href="historial.html" class="btn btn-sm btn-outline-info">📚 Historial Mensual</a>
+        </div>
+
+        <div class="mb-3">
+            <label for="selector-horario" class="form-label fw-bold text-secondary">Selecciona la Clase / Horario:</label>
+            <select id="selector-horario" class="form-select form-select-lg">
+                <option value="6:00 PM (L-M-V)">6:00 PM — Lunes, Miércoles, Viernes</option>
+                <option value="7:00 PM (L-M-V)">7:00 PM — Lunes, Miércoles, Viernes</option>
+                <option value="8:00 PM (L-M-V)">8:00 PM — Lunes, Miércoles, Viernes</option>
+                <option value="6:00 PM (M-J)">6:00 PM — Martes, Jueves</option>
+                <option value="7:00 PM (M-J)">7:00 PM — Martes, Jueves</option>
+                <option value="8:00 PM (M-J)">8:00 PM — Martes, Jueves</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label for="selector-fecha" class="form-label fw-bold text-secondary">Fecha de la Clase:</label>
+            <input type="date" id="selector-fecha" class="form-control form-control-lg">
+        </div>
+
+        <!-- Alertas de cumpleaños -->
+        <div id="alertas-cumpleanios"></div>
+
+        <div class="text-center mb-4">
+            <h2>🥋 Pase de Lista (<span id="clase-actual">6:00 PM (L-M-V)</span>)</h2>
+        </div>
+
+        <div id="lista-alumnos">
+            <p class="text-center text-muted">Cargando alumnos...</p>
+        </div>
+    </div>
+
+    <!-- 📚 LIBRERÍAS (Solo una de cada una) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 📲 SCRIPT PRINCIPAL DEL PASE DE LISTA -->
+    <script>
+        // 1. Aquí definimos la dirección (Etiqueta)
+        const API_URL = "https://taekwondo-backend-aqnu.onrender.com";
+        
+        const selectorHorario = document.getElementById('selector-horario');
+        const selectorFecha = document.getElementById('selector-fecha');
+        const claseActualTxt = document.getElementById('clase-actual');
+        const contenedorCumples = document.getElementById('alertas-cumpleanios');
+
+        const hoy = new Date().toISOString().split('T')[0];
+        selectorFecha.value = hoy;
+
+        selectorHorario.addEventListener('change', () => {
+            claseActualTxt.textContent = selectorHorario.value;
+            cargarAlumnos(); 
+        });
+
+        function calcularInfoCumple(fechaNacStr) {
+            if (!fechaNacStr || fechaNacStr === "null" || fechaNacStr.trim() === "") return null;
+            
+            const partes = fechaNacStr.split('-');
+            if (partes.length !== 3) return null;
+
+            const anioNac = parseInt(partes[0], 10);
+            const mesNac = parseInt(partes[1], 10);
+            const diaNac = parseInt(partes[2], 10);
+            
+            if (isNaN(anioNac) || isNaN(mesNac) || isNaN(diaNac)) return null;
+
+            const hoyCalculo = new Date();
+            hoyCalculo.setHours(0, 0, 0, 0);
+            
+            let cumpleDestino = new Date(hoyCalculo.getFullYear(), mesNac - 1, diaNac);
+            
+            if (cumpleDestino < hoyCalculo) {
+                cumpleDestino.setFullYear(hoyCalculo.getFullYear() + 1);
+            }
+            
+            const diffMs = cumpleDestino - hoyCalculo;
+            const diasFaltantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            const edadQueCumple = cumpleDestino.getFullYear() - anioNac;
+            
+            return { dias: diasFaltantes, edad: edadQueCumple };
+        }
+
+        async function cargarAlumnos() {
+            const horarioSeleccionado = selectorHorario.value;
+            const contenedor = document.getElementById('lista-alumnos');
+            
+            contenedor.innerHTML = '<p class="text-center text-muted">Buscando alumnos...</p>';
+            contenedorCumples.innerHTML = ""; 
+
+            try {
+                // 2. Aquí usamos la etiqueta de manera inteligente
+                const res = await fetch(`${API_URL}/alumnos?horario=${encodeURIComponent(horarioSeleccionado)}&solo_activos=true`);
+                const alumnos = await res.json();
+                
+                contenedor.innerHTML = "";
+                let htmlCumples = "";
+
+                if (alumnos.length === 0) {
+                    contenedor.innerHTML = `<p class="text-center text-warning fw-bold mt-3">⚠️ No hay alumnos activos en este horario.</p>`;
+                    return;
+                }
+
+                alumnos.forEach(alumno => {
+                    if (alumno.fecha_nacimiento) {
+                        const info = calcularInfoCumple(alumno.fecha_nacimiento);
+                        
+                        if (info) {
+                            if (info.dias === 0) {
+                                htmlCumples += `<div class="alert alert-success py-2 mb-2 fw-bold text-center">🎉 ¡HOY <strong>${alumno.nombre} ${alumno.apellido || ''}</strong> cumple ${info.edad} años! 🎂🥋</div>`;
+                            } else if (info.dias > 0 && info.dias <= 7) {
+                                const textoDias = info.dias === 1 ? "mañana" : `en ${info.dias} días`;
+                                htmlCumples += `<div class="alert alert-info py-2 mb-2 shadow-sm">🎈 <strong>${alumno.nombre} ${alumno.apellido || ''}</strong> cumple ${info.edad} años ${textoDias}.</div>`;
+                            }
+                        }
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = "alumno-row";
+                    div.innerHTML = `
+                        <span class="alumno-name">${alumno.nombre} ${alumno.apellido || ''}</span>
+                        <div>
+                            <button class="btn btn-success btn-action" onclick="marcar(${alumno.id}, true)">Asistió</button>
+                            <button class="btn btn-danger btn-action" onclick="marcar(${alumno.id}, false)">Faltó</button>
+                        </div>
+                    `;
+                    contenedor.appendChild(div);
+                });
+
+                if (htmlCumples !== "") {
+                    contenedorCumples.innerHTML = htmlCumples + "<hr>";
+                }
+
+            } catch (error) {
+                contenedor.innerHTML = `<p class="text-center text-danger">❌ Error de conexión con la API.</p>`;
+            }
+        }
+
+        async function marcar(alumnoId, asistio) {
+            const horarioSeleccionado = selectorHorario.value;
+            const fechaSeleccionada = selectorFecha.value ? selectorFecha.value : null; 
+
+            try {
+                // 3. Aquí también usamos la etiqueta inteligente
+                const res = await fetch(`${API_URL}/asistencias`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        alumno_id: alumnoId,
+                        asistio: asistio,
+                        horario: horarioSeleccionado,
+                        fecha: fechaSeleccionada
+                    })
+                });
+
+                if (res.ok) {
+                    Swal.fire({ title: '¡Registrado!', icon: 'success', timer: 800, showConfirmButton: false });
+                }
+            } catch (error) {
+                Swal.fire('Error', 'No se pudo guardar el registro.', 'error');
+            }
+        }
+
+        cargarAlumnos();
+    </script>
+
+    <!-- 🛡️ SCRIPT DEL GUARDIÁN DE SEGURIDAD -->
+    <script>
+        const SB_URL = "https://raqoidwtnhqhwbywsmiy.supabase.co";
+        const SB_KEY = "sb_publishable_JR5TZRjEM7QQYUUpTbU02A_JH8gic0p";
+        const supabaseGuard = supabase.createClient(SB_URL, SB_KEY);
+
+        async function verificarAcceso() {
+            try {
+                const { data: { session } } = await supabaseGuard.auth.getSession();
+                if (!session) {
+                    window.location.href = "login.html";
+                }
+            } catch (error) {
+                console.error("Error al verificar sesión:", error);
+                window.location.href = "login.html";
+            }
+        }
+        verificarAcceso();
+
+        async function cerrarSesion() {
+            await supabaseGuard.auth.signOut();
+            window.location.href = "login.html";
+        }
+    </script>
+</body>
+</html>

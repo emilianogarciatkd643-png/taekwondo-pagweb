@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte 30 Días - Taekwondo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding: 20px; font-family: 'Segoe UI', sans-serif; }
+        .card-panel { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        
+        /* === ESTILOS DE LA TABLA Y SCROLL === */
+        .table-responsive {
+            overflow-x: auto;
+            max-height: 65vh; 
+            white-space: nowrap; 
+            scrollbar-width: thin;
+            scrollbar-color: #6c757d #e9ecef;
+        }
+        .table-responsive::-webkit-scrollbar { height: 10px; }
+        .table-responsive::-webkit-scrollbar-track { background: #e9ecef; border-radius: 5px; }
+        .table-responsive::-webkit-scrollbar-thumb { background: #6c757d; border-radius: 5px; }
+
+        /* Encabezados oscuros con texto blanco */
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background-color: #212529 !important;
+            color: white !important; 
+            vertical-align: middle;
+            text-align: center;
+        }
+
+        .sticky-col {
+            position: sticky !important;
+            left: 0;
+            background-color: white; 
+            z-index: 1;
+            box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1); 
+        }
+        thead th.sticky-col { z-index: 3; }
+
+        /* === CELDAS === */
+        .col-dia {
+            min-width: 100px !important; 
+            padding: 12px !important;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: white !important; /* Texto blanco en cabeceras de fechas */
+            text-align: center;
+        }
+        .celda-dia {
+            min-width: 100px !important;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .circulo {
+            width: 22px; 
+            height: 22px;
+            border-radius: 50%;
+            margin: 0 auto;
+        }
+        .circulo-verde { background-color: #28a745; box-shadow: 0 0 6px rgba(40,167,69,0.5); }
+        .circulo-rojo { background-color: #dc3545; box-shadow: 0 0 6px rgba(220,53,69,0.5); }
+        .circulo-blanco { background-color: #e9ecef; border: 1px solid #ced4da; }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid card-panel">
+        
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h3 class="mb-1 fw-bold text-dark">📊 Reporte de Asistencia (30 Días)</h3>
+                <h5 class="text-secondary fw-normal" id="fecha-actual"></h5>
+            </div>
+            <div class="mt-2">
+                <a href="index.html" class="btn btn-sm btn-outline-secondary">🏠 Inicio</a>
+                <a href="administrar.html" class="btn btn-sm btn-outline-dark">⚙️ Administrar</a>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label for="filtro-clase" class="form-label fw-bold text-secondary">🥋 Filtrar por Clase:</label>
+                <select id="filtro-clase" class="form-select border-secondary" onchange="mostrarReporteFiltrado()">
+                    <option value="TODOS">✨ Ver Todas las Clases</option>
+                    <option value="6:00 PM (L-M-V)">6:00 PM — L-M-V</option>
+                    <option value="7:00 PM (L-M-V)">7:00 PM — L-M-V</option>
+                    <option value="8:00 PM (L-M-V)">8:00 PM — L-M-V</option>
+                    <option value="6:00 PM (M-J)">6:00 PM — M-J</option>
+                    <option value="7:00 PM (M-J)">7:00 PM — M-J</option>
+                    <option value="8:00 PM (M-J)">8:00 PM — M-J</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive border rounded shadow-sm">
+            <table class="table table-bordered table-hover align-middle text-center mb-0">
+                <thead id="tabla-cabecera">
+                    <tr><th>Cargando...</th></tr>
+                </thead>
+                <tbody id="tabla-cuerpo">
+                    <tr><td class="text-muted py-5">Cargando datos...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://taekwondo-backend-aqnu.onrender.com";
+        let datosFechas = [];
+        let datosReporteGlobal = [];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            let fechaStr = new Date().toLocaleDateString('es-MX', opcionesFecha);
+            fechaStr = fechaStr.charAt(0).toUpperCase() + fechaStr.slice(1);
+            document.getElementById('fecha-actual').textContent = fechaStr;
+            obtenerDatosMatriz();
+        });
+
+        async function obtenerDatosMatriz() {
+            try {
+                const res = await fetch(`${API_URL}/reporte-30-dias`);
+                const data = await res.json();
+                datosFechas = data.fechas;
+                datosReporteGlobal = data.reporte;
+                mostrarReporteFiltrado();
+            } catch (error) {
+                document.getElementById('tabla-cuerpo').innerHTML = '<tr><td class="text-danger py-4">Error conectando con la BD.</td></tr>';
+            }
+        }
+
+        function mostrarReporteFiltrado() {
+            const cabecera = document.getElementById('tabla-cabecera');
+            const cuerpo = document.getElementById('tabla-cuerpo');
+            const filtro = document.getElementById('filtro-clase').value;
+
+            const filtrados = filtro === "TODOS" 
+                ? datosReporteGlobal 
+                : datosReporteGlobal.filter(alumno => alumno.horario === filtro);
+
+            // Generar Encabezado
+            let theadHTML = `<tr>
+                <th class="text-start ps-3 sticky-col" style="min-width: 200px; color: white !important;">Nombre del Alumno</th>`;
+            
+            datosFechas.forEach(fecha => {
+                theadHTML += `<th class="col-dia">${fecha}</th>`;
+            });
+
+            theadHTML += `
+                <th style="min-width: 80px; color: white !important;">Asist.</th>
+                <th style="min-width: 80px; color: white !important;">Faltas</th>
+                <th style="min-width: 90px; color: white !important;">Rend.</th>
+            </tr>`;
+            cabecera.innerHTML = theadHTML;
+
+            // Generar Cuerpo
+            cuerpo.innerHTML = "";
+            if (filtrados.length === 0) {
+                cuerpo.innerHTML = `<tr><td colspan="${datosFechas.length + 4}" class="text-muted py-5 fw-bold fs-5">No hay alumnos en esta clase.</td></tr>`;
+                return;
+            }
+
+            filtrados.forEach(alumno => {
+                const tr = document.createElement('tr');
+                let badgeColor = alumno.porcentaje >= 80 ? "bg-success" : (alumno.porcentaje >= 60 ? "bg-warning text-dark" : "bg-danger");
+
+                let celdasDias = "";
+                alumno.registro_diario.forEach(estado => {
+                    let claseCirculo = estado === "verde" ? "circulo-verde" : (estado === "rojo" ? "circulo-rojo" : "circulo-blanco");
+                    celdasDias += `<td class="celda-dia"><div class="circulo ${claseCirculo}"></div></td>`;
+                });
+
+                tr.innerHTML = `
+                    <td class="text-start ps-3 fw-bold sticky-col text-truncate" style="max-width: 200px;">${alumno.nombre} ${alumno.apellido || ''}</td>
+                    ${celdasDias}
+                    <td class="text-success fw-bold fs-5">${alumno.asistencias}</td>
+                    <td class="text-danger fw-bold fs-5">${alumno.faltas}</td>
+                    <td><span class="badge ${badgeColor} px-3 py-2 fs-6">${alumno.porcentaje}%</span></td>
+                `;
+                cuerpo.appendChild(tr);
+            });
+        }
+    </script>
+<!-- pegar al final de tus páginas antes de </body> -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const SB_URL = "https://raqoidwtnhqhwbywsmiy.supabase.co";
+    const SB_KEY = "sb_publishable_JR5TZRjEM7QQYUUpTbU02A_JH8gic0p";
+    const supabaseGuard = supabase.createClient(SB_URL, SB_KEY);
+
+    // 1. Proteger la página expulsando a los intrusos
+    async function verificarAcceso() {
+        try {
+            const { data: { session } } = await supabaseGuard.auth.getSession();
+            if (!session) {
+                window.location.href = "login.html";
+            }
+        } catch (error) {
+            console.error("Error al verificar sesión:", error);
+            window.location.href = "login.html";
+        }
+    }
+    verificarAcceso();
+
+    // 2. Función por si tienes o quieres poner un botón de "Cerrar Sesión"
+    async function cerrarSesion() {
+        await supabaseGuard.auth.signOut();
+        window.location.href = "login.html";
+    }
+</script>
+</body>
+</html>
